@@ -29,5 +29,13 @@ return [
         'secret' => env('AWS_SECRET_ACCESS_KEY'),
         'region' => env('AWS_DEFAULT_REGION', 'us-east-1'),
     ],
+    'fawry' => [
+        'merchant_code' => env('FAWRY_MERCHANT_CODE'),
+        'secure_key'    => env('FAWRY_SECURE_KEY'),
+        'mode'          => env('FAWRY_MODE', 'sandbox'),
+        'sandbox_url'   => 'https://atfawry.fawrystaging.com/ECommerceWeb/Fawry/payments',
+        'live_url'      => 'https://www.atfawry.com/ECommerceWeb/Fawry/payments',
+    ],
+
 
 ];

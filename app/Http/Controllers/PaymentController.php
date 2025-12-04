@@ -134,7 +134,7 @@ class PaymentController extends Controller
     {
         $order = Order::where(['id' => session('order_id'), 'user_id'=>session('customer_id')])->first();
         if (isset($order) && $order->callback != null) {
-            return redirect($order->callback . '&status=success');
+            return redirect($order->callback. '&status=success');
         }
         return response()->json(['message' => 'Payment succeeded'], 200);
     }

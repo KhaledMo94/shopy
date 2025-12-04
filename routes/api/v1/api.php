@@ -323,8 +323,10 @@ Route::group(['namespace' => 'Api\V1', 'middleware'=>'localization'], function (
 
     Route::group(['middleware'=>['module-check']], function(){
         Route::group(['prefix' => 'customer', 'middleware' => 'auth:api'], function () {
+
             Route::post('get-data', 'CustomerController@getCustomer');
-            Route::post('external-update-data', 'CustomerController@externalUpdateCustomer')->withoutMiddleware(['auth:api','module-check']);
+            Route::post('external-update-data', 'CustomerController@externalUpdateCustomer')
+                ->withoutMiddleware(['auth:api','module-check']);
             Route::get('notifications', 'NotificationController@get_notifications');
             Route::get('info', 'CustomerController@info');
             Route::get('update-zone', 'CustomerController@update_zone');
@@ -332,7 +334,6 @@ Route::group(['namespace' => 'Api\V1', 'middleware'=>'localization'], function (
             Route::post('update-interest', 'CustomerController@update_interest');
             Route::put('cm-firebase-token', 'CustomerController@update_cm_firebase_token');
             Route::get('suggested-items', 'CustomerController@get_suggested_item');
-            //Remove account
             Route::delete('remove-account', 'CustomerController@remove_account');
 
             Route::group(['prefix' => 'address'], function () {
@@ -341,7 +342,6 @@ Route::group(['namespace' => 'Api\V1', 'middleware'=>'localization'], function (
                 Route::put('update/{id}', 'CustomerController@update_address');
                 Route::delete('delete', 'CustomerController@delete_address');
             });
-
 
             // Chatting
             Route::group(['prefix' => 'message'], function () {
@@ -392,7 +392,6 @@ Route::group(['namespace' => 'Api\V1', 'middleware'=>'localization'], function (
                 Route::put('payment-method', 'OrderController@update_payment_method');
                 Route::put('offline-payment', 'OrderController@offline_payment');
                 Route::put('offline-payment-update', 'OrderController@update_offline_payment_info');
-
             });
 
             Route::group(['prefix'=>'cart'], function() {

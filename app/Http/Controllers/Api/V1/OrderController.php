@@ -234,7 +234,7 @@ class OrderController extends Controller
 
 
 
-    $digital_payment = Helpers::get_business_settings('digital_payment');
+        $digital_payment = Helpers::get_business_settings('digital_payment');
             if($digital_payment['status'] == 0 && $request->payment_method == 'digital_payment'){
                 return response()->json([
                     'errors' => [
@@ -259,8 +259,6 @@ class OrderController extends Controller
         if ($request->latitude && $request->longitude) {
             $point = new Point($request->latitude, $request->longitude);
             if ($request->order_type == 'parcel') {
-            // if(isset($request->sender_zone_id) ){
-                // $zone_id = $request->sender_zone_id;
                 $zone_ids = $request->header('zoneId') ? json_decode($request->header('zoneId'), true) :[];
                 $zone = Zone::whereIn('id', $zone_ids)->whereContains('coordinates', new Point($request->latitude, $request->longitude, POINT_SRID))->wherehas('modules',function($q){
                     $q->where('module_type','parcel');
@@ -480,7 +478,6 @@ class OrderController extends Controller
         $address = [
             'contact_person_name' => $request->contact_person_name ? $request->contact_person_name : ($request->user?$request->user->f_name . ' ' . $request->user->l_name:''),
             'contact_person_number' => $request->contact_person_number ? $request->contact_person_number : ($request->user?$request->user->phone:''),
-//            'contact_person_number' => $request->contact_person_number ? ($request->user ? $request->contact_person_number :str_replace('+', '', $request->contact_person_number)) : ($request->user?$request->user->phone:''),
             'contact_person_email' => $request->contact_person_email ? $request->contact_person_email : ($request->user?$request->user->email:''),
             'address_type' => $request->address_type ? $request->address_type : 'Delivery',
             'address' => $request?->address??'',
@@ -1625,9 +1622,6 @@ class OrderController extends Controller
         $user_id = $request?->user?->id ;
 
         $order = Order::with('details', 'offline_payments','parcel_category')
-//        ->when(!isset($request->user) , function($query){
-//            $query->where('is_guest' , 1);
-//        })
 
         ->when(isset($request->user)  , function($query){
             $query->where('is_guest' , 0);

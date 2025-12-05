@@ -4,94 +4,79 @@ namespace App\Http\Controllers\Api\V1\Payment;
 
 use App\Http\Controllers\Controller;
 use App\Models\Order;
+use App\Models\PaymentRequest;
 use App\Services\FawryService;
+use App\Traits\Processor;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator as FacadesValidator;
+use Illuminate\Validation\Validator;
 
 class FawryPaymentController extends Controller
 {
+    use Processor;
+    private PaymentRequest $payment;
     protected FawryService $fawry;
 
-    public function __construct(FawryService $fawry)
+    public function __construct(PaymentRequest $payment , FawryService $fawry)
     {
+        $this->payment = $payment;
         $this->fawry = $fawry;
     }
 
-    public function intiatePayment(Request $request)
+
+    public function payment(Request $request)
     {
-        $request->validate([
-            'order_id'              =>'required|exists:orders,id',
+        $validator = FacadesValidator::make($request->all(), [
+            'payment_id' => 'required|uuid'
         ]);
 
-        $order = Order::findOrFail($request->order_id);
+        if ($validator->fails()) {
+            return response()->json(
+                $this->response_formatter(GATEWAYS_DEFAULT_400, null, $this->error_processor($validator)),
+                400
+            );
+        }
 
-        $merchantRefNum = 'ORD-' . $order->id . '-' . time();
-        $order->payment_ref = $merchantRefNum;
-        $order->payment_method = 'fawry';
-        $order->payment_status = 'pending';
-        $order->save();
+        $data = $this->payment::where('id', $request->payment_id)
+                              ->where('is_paid', 0)
+                              ->first();
 
-        $data = [
-            'merchantRefNum'   => $merchantRefNum,
-            'customerName'     => $order->customer->name ?? 'Guest',
-            'customerMobile'   => $order->customer->phone ?? '',
-            'customerEmail'    => $order->customer->email ?? '',
-            'paymentMethod'    => $request->payment_method,
-            'amount'           => (float) $order->order_amount,
-            'currencyCode'     => 'EGP',
-            'language'         => 'en-gb',
-            'chargeItems'      => $this->buildChargeItemsFromOrder($order),
-            'orderWebHookUrl'  => route('fawry.webhook'),
+        if (! $data) {
+            return response()->json($this->response_formatter(GATEWAYS_DEFAULT_204), 200);
+        }
+
+        $amount = number_format($data->payment_amount, 2, '.', '');
+        $merchantRefNum = $data->id;
+
+        $payer = json_decode($data->payer_information);
+
+        $customerName  = $payer->name  ?? "Customer";
+        $customerEmail = $payer->email ?? "noemail@example.com";
+        $customerPhone = $payer->phone ?? "01000000000";
+
+        $chargeItems = [
+            [
+                "itemId"      => "PAYMENT-" . $data->id,
+                "description" => "Order Payment",
+                "price"       => floatval($amount),
+                "quantity"    => 1
+            ]
         ];
 
-        $response = $this->fawry->createCharge($data);
+        $payload = [
+            "merchantRefNum"   => $merchantRefNum,
+            "customerName"     => $customerName,
+            "customerMobile"   => $customerPhone,
+            "customerEmail"    => $customerEmail,
+            "amount"           => floatval($amount),
+            "chargeItems"      => $chargeItems,
+            "paymentMethod"    => "PAYATFAWRY",
+            "orderWebHookUrl"  => route('fawry.webhook'),
+        ];
 
-        $order->save();
+        $response = $this->fawry->createCharge($payload);
 
-        return response()->json([
-            'success'  => true,
-            'message'  => 'Fawry payment initiated',
-            'data'     => $response, // may contain redirect URL / reference
-        ]);
-    }
+        return $response;
 
-    protected function buildChargeItemsFromOrder(Order $order): array
-    {
-        return $order->details->map(function ($item) {
-            return [
-                'itemId'      => $item->id,
-                'description' => $item->item_name,
-                'price'       => (float) $item->price,
-                'quantity'    => (float) $item->quantity,
-            ];
-        })->values()->toArray();
-    }
-
-    public function webhook(Request $request)
-    {
-        $merchantRefNum     = $request->input('merchantRefNumber');
-        $fawrySignature     = $request->input('signature');
-        $orderStatus        = $request->input('orderStatus'); 
-        $paymentAmount      = $request->input('orderAmount');
-
-        if (! $this->fawry->verifyNotificationSignature($merchantRefNum, $fawrySignature)) {
-            return response()->json(['success' => false, 'message' => 'Invalid signature'], 400);
-        }
-
-        $order = Order::where('payment_ref', $merchantRefNum)->first();
-
-        if (! $order) {
-            return response()->json(['success' => false, 'message' => 'Order not found'], 404);
-        }
-
-        if ($orderStatus === 'PAID') {
-            $order->payment_status = 'paid';
-            $order->order_status   = 'confirmed'; // adapt to your flow
-        } else {
-            $order->payment_status = 'failed';
-        }
-
-        $order->save();
-
-        return response()->json(['success' => true]);
     }
 }

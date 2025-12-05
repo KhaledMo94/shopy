@@ -74,7 +74,9 @@ Route::group(['namespace' => 'Api\V1', 'middleware'=>'localization'], function (
     Route::group(['prefix' => 'vendor','namespace' => 'Vendor'], function () {
         Route::get('package-view', 'SubscriptionController@package_view');
         Route::post('business_plan', 'SubscriptionController@business_plan');
-        Route::post('subscription/payment/api', 'SubscriptionController@subscription_payment_api')->name('subscription_payment_api');
+        Route::post('subscription/payment/api', 'SubscriptionController@subscription_payment_api')
+            ->name('subscription_payment_api')
+        ->withoutMiddleware(['auth:api','module-check']);
         Route::post('package-renew', 'SubscriptionController@package_renew_change_update_api');
         Route::post('cancel-subscription', 'SubscriptionController@cancelSubscription');
         Route::get('check-product-limits', 'SubscriptionController@checkProductLimits');
@@ -90,8 +92,6 @@ Route::group(['namespace' => 'Api\V1', 'middleware'=>'localization'], function (
 
     Route::group(['prefix' => 'delivery-man'], function () {
         Route::get('last-location', 'DeliverymanController@get_last_location');
-
-
         Route::group(['prefix' => 'reviews','middleware'=>['auth:api']], function () {
             Route::get('/{delivery_man_id}', 'DeliveryManReviewController@get_reviews');
             Route::get('rating/{delivery_man_id}', 'DeliveryManReviewController@get_rating');
@@ -169,14 +169,10 @@ Route::group(['namespace' => 'Api\V1', 'middleware'=>'localization'], function (
         Route::get('get-items-list', 'VendorController@get_items');
         Route::put('update-bank-info', 'VendorController@update_bank_info');
         Route::post('request-withdraw', 'VendorController@request_withdraw');
-
         Route::put('send-order-otp', 'VendorController@send_order_otp');
-
         Route::post('make-collected-cash-payment', 'VendorController@make_payment')->name('make_payment');
         Route::post('make-wallet-adjustment', 'VendorController@make_wallet_adjustment')->name('make_wallet_adjustment');
         Route::get('wallet-payment-list', 'VendorController@wallet_payment_list')->name('wallet_payment_list');
-
-
         Route::get('get-withdraw-method-list', 'WithdrawMethodController@withdraw_method_list');
 
         Route::group(['prefix' => 'withdraw-method'], function () {
@@ -307,7 +303,6 @@ Route::group(['namespace' => 'Api\V1', 'middleware'=>'localization'], function (
 
     Route::group(['prefix' => 'testimonial'], function () {
         Route::get('/', 'TestimonialController@get_tetimonial_lists');
-
     });
 
     Route::get('customer/order/cancellation-reasons', 'OrderController@cancellation_reason');

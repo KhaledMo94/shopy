@@ -7,43 +7,70 @@ use Illuminate\Support\Facades\Http;
 class FawryService
 {
     protected string $merchantCode;
-    protected string $secureKey;
+    protected string $secretKey;
     protected string $baseUrl;
 
     public function __construct()
     {
         $this->merchantCode = config('services.fawry.merchant_code');
-        $this->secureKey    = config('services.fawry.secure_key');
+        $this->secretKey    = config('services.fawry.secure_key');
 
-        $this->baseUrl = config('services.fawry.mode') === 'production'
-            ? config('services.fawry.live_url')
-            : config('services.fawry.sandbox_url');
+        $this->baseUrl      = config('services.fawry.mode') == 'sandbox'
+            ? 'https://atfawry.fawrystaging.com/fawrypay-api/api/payments/init'
+            : 'https://atfawry.com/fawrypay-api/api/payments/init';
     }
 
+    /**
+     * Create charge request (Redirect URL / Reference)
+     */
     public function createCharge(array $data): array
     {
-        $signatureString = $this->merchantCode
-            . $data['merchantRefNum']
-            . 'PAYATFAWRY'
-            . number_format($data['amount'], 2, '.', '')
-            . $this->secureKey;
+        $signature = $this->generateSignature(
+            $data['merchantRefNum'],
+            $data['customerMobile'],
+            $data['amount']
+        );
 
-        $data['signature']    = hash('sha256', $signatureString);
-        $data['merchantCode'] = $this->merchantCode;
+        $payload = [
+            "merchantCode"      => $this->merchantCode,
+            "merchantRefNum"    => $data['merchantRefNum'],
+            "customerName"      => $data['customerName'],
+            "customerMobile"    => $data['customerMobile'],
+            "customerEmail"     => $data['customerEmail'],
+            "paymentMethod"     => $data['paymentMethod'],
+            "amount"            => $data['amount'],
+            "currencyCode"      => "EGP",
+            "chargeItems"       => $data['chargeItems'],
+            "orderWebHookUrl"   => $data['orderWebHookUrl'],
+            "signature"         => $signature,
+        ];
 
-        $response = Http::withHeaders([
-            'Accept'       => 'application/json',
-            'Content-Type' => 'application/json',
-        ])->post($this->baseUrl . '/charge', $data);
+        $response = Http::post($this->baseUrl.'charge', $payload);
 
         return $response->json();
     }
 
-    public function verifyNotificationSignature(string $merchantRefNum, string $receivedSignature): bool
-    {
-        $signatureString = $this->merchantCode . $merchantRefNum . $this->secureKey;
-        $calculated      = hash('sha256', $signatureString);
 
-        return hash_equals($calculated, $receivedSignature);
+    /**
+     * Signature for charge requests
+     */
+    public function generateSignature(string $merchantRefNum, string $customerMobile, float $amount): string
+    {
+        return hash('sha256',
+            $this->merchantCode .
+            $merchantRefNum .
+            $customerMobile .
+            number_format($amount, 2, '.', '') .
+            $this->secretKey
+        );
+    }
+
+    /**
+     * Verify callback/webhook
+     */
+    public function verifyNotificationSignature(string $merchantRef, string $receivedSignature): bool
+    {
+        $local = hash('sha256', $merchantRef . $this->secretKey);
+        return strtolower($local) === strtolower($receivedSignature);
     }
 }
